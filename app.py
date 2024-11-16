@@ -9,159 +9,140 @@ import base64
 from io import BytesIO
 
 
-penguins_df = load_penguins()
+# Load the Palmer Penguins dataset
+penguins = load_penguins()
 
-@reactive.calc
-def filtered_data():
-    selected_species = input.Selected_Species_List()
-    min_mass, max_mass = input.body_mass_range()
-    
-    
-    filtered_df = penguins_df[
-        (penguins_df["species"].isin(selected_species)) &
-        (penguins_df["body_mass_g"] >= min_mass) &
-        (penguins_df["body_mass_g"] <= max_mass)
-    ]
-    return filtered_df
+# Set the page options with the title "Penguin Data Exploration"
+ui.page_opts(title="Penguin Data Exploration - Katie McGaughey", fillable=True)
 
+# Add a Shiny UI sidebar for user interaction
+with ui.sidebar(position="right", bg="#f8f8f8", open="open"):  # Set sidebar open by default
+    ui.h2("Sidebar")  # Sidebar header
 
-with ui.sidebar(open="open"):
-    ui.h2("Sidebar")
-    
+    # Dropdown input for choosing a column
     ui.input_selectize(
         "selected_attribute",
-        "Penguin Metric",
-        ["bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g"],
-    )
-    ui.input_numeric("plotly_bin_count", "Number of Bins", 50)
-    ui.input_slider("seaborn_bin_count", "Seaborn Bins", 1, 50, 20)
-    
-    ui.input_checkbox_group(
-        "Selected_Species_List",
-        "Species Selection",
-        ["Adelie", "Gentoo", "Chinstrap"],
-        selected=["Adelie", "Gentoo", "Chinstrap"],
-        inline=False,
-    )
-    ui.input_slider(
-        "body_mass_range",
-        "Body Mass Range (g)",
-        min=penguins_df["body_mass_g"].min(),
-        max=penguins_df["body_mass_g"].max(),
-        value=(penguins_df["body_mass_g"].min(), penguins_df["body_mass_g"].max())
-    )
-    
-    ui.input_selectize(
-        "scatter_x_axis",
-        "Scatter Plot X-Axis",
-        ["bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g"],
-        selected="body_mass_g"
-    )
-    ui.input_selectize(
-        "scatter_y_axis",
-        "Scatter Plot Y-Axis",
-        ["bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g"],
-        selected="flipper_length_mm"
+        "Select column to visualize",
+        choices=["bill_length_mm", "bill_depth_mm", "flipper_length_mm", "body_mass_g"],
+        selected="bill_length_mm",
     )
 
+    # Numeric input for Plotly histogram bins
+    ui.input_numeric("plotly_bin_count", "Plotly bin Count", 12, min=1, max=30)
+
+    # Slider input for Seaborn bins
+    ui.input_slider("seaborn_bin_count", "Seaborn Bin Count", 5, 50, 15, step=5)
+
+    # Checkbox group to filter species
+    ui.input_checkbox_group(
+        "selected_species_list",
+        "Select Species",
+        choices=["Adelie", "Gentoo", "Chinstrap"],
+        selected=["Adelie"],
+        inline=True,
+    )
+
+ # Horizontal rule in the sidebar
     ui.hr()
+
+    # Link to GitHub repository
+    ui.h5("GitHub Code Repository")
     ui.a(
-        "Github",
-        href="https://github.com/k363m611/cintel-02-data/tree/main",
+        "View on GitHub",
+        href="https://github.com/k363m611/cintel-02-data",
         target="_blank",
     )
 
+# Main content layout
 with ui.layout_columns():
-   
-    with ui.card(full_screen=True):
-        @render_plotly
-        def plot1():
-            filtered_df = filtered_data()
-            fig = px.histogram(
-                filtered_df,
-                x="bill_length_mm",
-                title="Histogram of Bill Length",
-                color_discrete_sequence=["orange"]
-            )
-            fig.update_traces(marker_line_color="black", marker_line_width=2)
-            return fig
-
-
-    with ui.card(full_screen=True):
-        @render_plotly
-        def plot2():
-            selected_attribute = input.selected_attribute()
-            bin_count = input.plotly_bin_count()
-            filtered_df = filtered_data()
-            fig = px.histogram(
-                filtered_df,
-                x=selected_attribute,
-                nbins=bin_count,
-                title=f"Histogram of {selected_attribute.replace('_', ' ').title()}",
-                color_discrete_sequence=["black"]
-            )
-            fig.update_traces(marker_line_color="white", marker_line_width=2)
-            return fig
-
-
-with ui.layout_columns():
-    with ui.card(full_screen=True):
-        ui.card_header("Plotly Scatterplot: Custom Axes")
+    # Plotly Histogram
+    with ui.card():
+        ui.card_header("Plotly Histogram")
 
         @render_plotly
-        def scatter_plot():
-            filtered_df = filtered_data()
-            x_axis = input.scatter_x_axis()
-            y_axis = input.scatter_y_axis()
-            fig = px.scatter(
-                filtered_df,
-                x=x_axis,
-                y=y_axis,
+        def plotly_histogram():
+            return px.histogram(
+                penguins,
+                x=input.selected_attribute(),
+                nbins=input.plotly_bin_count(),
                 color="species",
-                title=f"Scatter Plot: {x_axis.replace('_', ' ').title()} vs {y_axis.replace('_', ' ').title()}",
-                labels={x_axis: x_axis.replace('_', ' ').title(), y_axis: y_axis.replace('_', ' ').title()}
+                color_discrete_sequence=["red", "blue", "green"]
             )
-            return fig
 
 
-    with ui.card(full_screen=True):
-        @render_plotly
-        def density_plot():
-            filtered_df = filtered_data()
-            fig = px.density_contour(
-                filtered_df,
-                x="bill_length_mm",
-                y="flipper_length_mm",
-                color="species",
-                title="Density Plot: Bill Length vs Flipper Length by Species",
-                labels={"bill_length_mm": "Bill Length (mm)", "flipper_length_mm": "Flipper Length (mm)"}
-            )
-            return fig
+    # Data Table
+    with ui.card():
+        ui.card_header("Data Table")
 
-
-with ui.layout_columns():
-    with ui.card(full_screen=True):
         @render.data_frame
         def data_table():
-            return render.DataTable(filtered_data(), selection_mode="row")
+            return penguins
 
-    with ui.card(full_screen=True):
+# Data Grid
+    with ui.card():
+        ui.card_header("Data Grid")
+
         @render.data_frame
         def data_grid():
-            return render.DataGrid(filtered_data(), selection_mode="row")
+            return penguins
 
-
+# Display the Scatterplot and Seaborn Histogram
 with ui.layout_columns():
-    with ui.card(full_screen=True):
-        @render.plot(alt="Seaborn histogram of selected penguin metric.")
-        def seaborn_histogram():
-            selected_attribute = input.selected_attribute()
-            bin_count = input.seaborn_bin_count()
-            filtered_df = filtered_data()
-            histplot = sns.histplot(
-                filtered_df[selected_attribute].dropna(), bins=bin_count, kde=True
+    # Plotly Scatterplot
+    with ui.card():
+        ui.card_header("Plotly Scatterplot: Body Mass vs. Bill Depth")
+
+        @render_plotly
+        def plotly_scatterplot():
+            return px.scatter(
+                data_frame=penguins,
+                x="body_mass_g",
+                y="bill_depth_mm",
+                color="species",
+                labels={"bill_depth_mm": "Bill Depth (mm)", "body_mass_g": "Body Mass (g)"},
+                color_discrete_sequence=["red", "blue", "green"]
             )
-            histplot.set_title(f"Seaborn Histogram of {selected_attribute.replace('_', ' ').title()}")
-            histplot.set_xlabel(selected_attribute.replace('_', ' ').title())
-            histplot.set_ylabel("Count")
-            return histplot
+
+ # Seaborn Histogram
+    with ui.card():
+        ui.card_header("Seaborn Histogram: Body Mass")
+
+        @render.plot
+        def seaborn_histogram():
+            fig, ax = plt.subplots()
+            sns.histplot(
+                data=penguins, x="body_mass_g", hue="species", bins=input.seaborn_bin_count(), ax=ax,palette=["red", "black", "green"]
+            )
+            ax.set_xlabel("Mass (g)")
+            ax.set_ylabel("Count")
+            ax.set_title("Body Mass Distribution (Seaborn)")
+            return fig
+
+  # Summary Statistics Table
+    with ui.card():
+        ui.card_header("Summary Statistics")
+
+        @render.data_frame
+        def summary_table():
+            summary = penguins.describe()
+            return summary.reset_index()  # Reset index for display
+
+# Density plot
+with ui.card():
+    ui.card_header("Seaborn Density Plot: Body Mass by Species")
+
+    @render.plot
+    def seaborn_density_plot():
+        fig, ax = plt.subplots()
+        sns.kdeplot(
+            data=penguins,
+            x="body_mass_g",
+            hue="species",
+            ax=ax,
+            fill=True,
+            palette=["red", "black", "green"]
+        )
+        ax.set_xlabel("Body Mass (g)")
+        ax.set_ylabel("Density")
+        ax.set_title("Body Mass Density by Species")
+        return fig
