@@ -1,5 +1,3 @@
-cintel-04-local
-
 from shiny.express import input, ui, render
 from shinywidgets import render_plotly
 import plotly.express as px
